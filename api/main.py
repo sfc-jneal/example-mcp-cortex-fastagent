@@ -8,9 +8,6 @@ import logging
 import httpx
 import os
 
-# Import MCP server handler
-from mcp_server import mcp_sse_handler
-
 from opentelemetry import metrics
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from opentelemetry.instrumentation.requests import RequestsInstrumentor

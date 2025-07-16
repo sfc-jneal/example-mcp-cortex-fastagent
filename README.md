@@ -159,7 +159,7 @@ graph TD
         A["Website (React)"]
     end
 
-    subgraph Orechestrating LLM
+    subgraph Orchestrating LLM
         LLM["LLM (OpenAI, Claude, etc.)"]
     end
     
@@ -172,11 +172,11 @@ graph TD
                 C --> D["Application Load Balancer (ELB)"]
                 
                 subgraph ECS
-                    subgraph "App Service"
-                        E["Backend App Service (ECS)"]
+                    subgraph "App (ECS Service)"
+                        E["Backend Api (FastAPI)"]
                     end 
-                    subgraph "MCP Service"
-                        F["MCP Client Service (ECS)"]
+                    subgraph "MCP (ECS Service)"
+                        F["MCP Client (FastAgent)"]
                         F -->|Spawns via uvx| G["MCP Server Process (e.g. Cortex)"]
                     end
                 end
