@@ -8,7 +8,6 @@ This repository contains a production-grade architecture for deploying a secure,
 
 The system is fully containerized for ECS deployment and includes support for:
 
-* Cookie-based enterprise SSO authentication
 * Tool orchestration via Cortex MCP server
 * Modular, role-aware agent configurations
 * Optional workflows, memory, and logging
@@ -41,8 +40,7 @@ The system is fully containerized for ECS deployment and includes support for:
 
 ## ✅ Features
 
-* **Enterprise-grade authentication** using secure session cookies and external auth service validation
-* **Split deployment** of app vs AI logic for scalability and isolation
+* **Split deployment** of app vs MCP for scalability and isolation
 * **Pluggable Cortex tools** via `cortex.yaml`
 * **Extendable agent behavior**: tool chaining, memory, audit logging, roles
 * **JWT-based inter-service authentication** for secure backend-to-backend calls
@@ -67,15 +65,6 @@ docker-compose up --build
 ```
 
 To simulate auth, set a `session` cookie with a JWT signed using your mock public key. For local development, authentication can be bypassed by setting `DISABLE_AUTH_FOR_DEV=1` in the backend-app environment.
-
----
-
-## 🔐 Auth Flow (Production)
-
-1. User logs in through your enterprise SSO
-2. Auth service sets a secure, HttpOnly `session` cookie
-3. `api/` validates the JWT using `RS256` and optionally calls the `/validate` authz endpoint
-4. If valid, request is passed to `/agent` (in `mcp/`) with user context, using a short-lived JWT for inter-service authentication
 
 ---
 

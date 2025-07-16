@@ -80,17 +80,11 @@ def auth(request: Request) -> Dict:
 # Removes JSON objects that the client sends with intermediate reasoning and tool object output.
 #   Only send the final LLM response to the frontend.
 def filter_response(raw_response):
-    logger.info('RAW_RESPONSE: {}'.format(raw_response))
-    raw_response = raw_response.strip()
-    if not raw_response.startswith("{"):
-        return raw_response
-    
     is_json = False
     try:
-        is_json = json.loads(raw_response)
+        is_json = json.loads(raw_response.strip())
     except:
         pass
-    logger.info('is_JSON: {}'.format(is_json))
     return '' if is_json else raw_response
 
 
