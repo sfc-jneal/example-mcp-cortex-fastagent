@@ -4,7 +4,7 @@
 # It is passed at runtime via --service-config-file when FastAgent launches the MCP server.
 
 search_services:
-  - service_name: "PRODOUCT_LINE_SEARCH_SERVICE"
+  - service_name: "PRODUCT_LINE_SEARCH_SERVICE"
     description: >
       Search service that returns distinct product lines.
     database_name: "CORTEX_ANALYST_DEMO"

@@ -21,10 +21,6 @@ mcp:
     mcp-server-snowflake:
       command: "uvx"
       args: ["--from", "git+https://github.com/Snowflake-Labs/mcp", "mcp-server-snowflake", "--service-config-file", "/app/servers/cortex.yaml"]
-      env:
-        PYTHONHTTPSVERIFY: "0"
-        REQUESTS_CA_BUNDLE: ""
-        CURL_CA_BUNDLE: ""
 
     # Example of other servers that could be added here:
     # --------------------------------------------------

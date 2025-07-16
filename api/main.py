@@ -3,10 +3,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from typing import Dict
 import requests
+import json
 import jwt
 import logging
 import httpx
 import os
+import re
 
 from opentelemetry import metrics
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
@@ -75,6 +77,23 @@ def auth(request: Request) -> Dict:
         return {"user": {"name": "John", "roles": ["admin"],  "email": "john@example.com"}}
     raise Exception('Auth needs to be completed.')
 
+# Removes JSON objects that the client sends with intermediate reasoning and tool object output.
+#   Only send the final LLM response to the frontend.
+def filter_response(raw_response):
+    logger.info('RAW_RESPONSE: {}'.format(raw_response))
+    raw_response = raw_response.strip()
+    if not raw_response.startswith("{"):
+        return raw_response
+    
+    is_json = False
+    try:
+        is_json = json.loads(raw_response)
+    except:
+        pass
+    logger.info('is_JSON: {}'.format(is_json))
+    return '' if is_json else raw_response
+
+
 # Syncronous chat endpoint - if stream wasn't available
 @app.post("/chat")
 async def chat(request: Request, user=Depends(auth)):
@@ -87,7 +106,14 @@ async def chat(request: Request, user=Depends(auth)):
     headers = {"Authorization": f"Bearer {mcp_jwt}"}
 
     response = requests.post(MCP_CLIENT_URL, json={"message": user_input, "user": user}, headers=headers)
-    return response.json()
+    
+    result = response.json()
+
+    if isinstance(result, dict) and "response" in result:
+        filtered = filter_response(result['response'])
+        return {'response': filtered}
+
+    return result
 
 # Streaming chat endpoint - if stream is available
 @app.get("/stream")
@@ -99,12 +125,15 @@ async def stream(query: str, user=Depends(auth)):
             headers = {"Authorization": f"Bearer {mcp_jwt}"}
             
             # Add timeout to prevent hanging
-            timeout = httpx.Timeout(30.0, connect=10.0)
+            timeout = httpx.Timeout(60.0, connect=10.0)
             async with httpx.AsyncClient(timeout=timeout) as client:
                 async with client.stream("GET", f"{MCP_STREAM_URL}?query={query}", headers=headers) as r:
                     async for line in r.aiter_lines():
                         if line:
-                            yield f"data: {line}\n\n"
+
+                            filtered = filter_response(line)
+                            if filtered:
+                                yield f"data: {filtered}\n\n"
         except httpx.TimeoutException:
             logger.error("Timeout while streaming from MCP client")
             yield "data: [ERROR: Request timed out]\n\n"
