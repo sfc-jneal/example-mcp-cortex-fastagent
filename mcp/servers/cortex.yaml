@@ -1,0 +1,32 @@
+# mcp_client_service/tools_config.yaml
+
+# This configuration defines the Cortex Search and Analyst services exposed by the MCP server.
+# It is passed at runtime via --service-config-file when FastAgent launches the MCP server.
+
+search_services:
+  - service_name: "PRODOUCT_LINE_SEARCH_SERVICE"
+    description: >
+      Search service that returns distinct product lines.
+    database_name: "CUSTOMER_DATA"
+    schema_name: "SUPPORT_DOCS"
+    columns: ["PRODUCT_DIMENSION"]
+    limit: 5
+
+#   - service_name: "engineering_specs"
+#     description: >
+#       Search service that returns engineering specs and design documents.
+#     database_name: "ENG_DATA"
+#     schema_name: "SPECS"
+#     columns: ["name", "version", "doc_url"]
+#     limit: 3
+
+analyst_services:
+  - service_name: "product_usage_model"
+    semantic_model: "PROD_DATA.SEMANTIC_USAGE_MODEL"
+    description: >
+      Analyst service that can analyze revenue, costs, profits and forecasted revenue metrics, and compare performance across product lines.
+
+  # - service_name: "finance_summary_view"
+  #   semantic_model: "FINANCE.VW_EXEC_SUMMARY"
+  #   description: >
+  #     Analyst service that provides executive-level financial summaries.

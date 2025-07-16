@@ -1,0 +1,64 @@
+version: '3.8'
+
+services:
+  backend-app:
+    build: ./api
+    ports:
+      - "8000:8000"
+    depends_on:
+      - mcp-client
+    networks:
+      - mcp-net
+    environment:
+      MCP_JWT_SECRET: "${JWT_SECRET}"
+      MCP_JWT_AUDIENCE: "mcp-client"
+      MCP_JWT_ISSUER: "main-api"
+      # For local development only. Replace with your real public key or use a .env file loader.
+      AUTH_PUBLIC_KEY: "${AUTH_PUBLIC_KEY}"
+      MCP_CLIENT_URL: "http://mcp-client:5005/agent" # This is the URL of the MCP client service
+      MCP_STREAM_URL: "http://mcp-client:5005/agent/sse" # This is the URL of the MCP client service
+      LOCAL_TESTING: true
+
+  mcp-client:
+    build: ./mcp
+    ports:
+      - "5005:5005"
+    environment:
+      SNOWFLAKE_PAT: "${SNOWFLAKE_PAT}"
+      SNOWFLAKE_PASSWORD: "${SNOWFLAKE_PASSWORD}"
+      SNOWFLAKE_ACCOUNT: "${SNOWFLAKE_ACCOUNT}"
+      SNOWFLAKE_USER: "${SNOWFLAKE_USER}"
+      MCP_JWT_SECRET: "${JWT_SECRET}"
+      MCP_JWT_AUDIENCE: "mcp-client"
+      MCP_JWT_ISSUER: "main-api"
+      OPENAI_API_KEY: "${OPENAI_API_KEY}"
+      # ANTHROPIC_API_KEY: "<your-anthropic-api-key>"
+      OTEL_COLLECTOR_OTLP_ENDPOINT: "http://jaeger:4318"
+      
+    networks:
+      - mcp-net
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend-app
+    networks:
+      - mcp-net
+    environment:
+      REACT_APP_API_URL: "http://localhost:8000" # Only environment variables with REACT_APP_ prefix are available in the frontend
+  
+  jaeger:
+    image: jaegertracing/jaeger:latest
+    container_name: jaeger
+    ports:
+      - "16686:16686" # Web UI
+      - "4318:4318" # OTLP HTTP
+    restart: unless-stopped
+
+networks:
+  mcp-net:
+    driver: bridge

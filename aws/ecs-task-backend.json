@@ -1,0 +1,21 @@
+# ecs_definitions/backend-task.json
+{
+  "family": "backend-app-task",
+  "networkMode": "awsvpc",
+  "containerDefinitions": [
+    {
+      "name": "backend-app",
+      "image": "<your-backend-image-uri>",
+      "portMappings": [
+        { "containerPort": 8000 }
+      ],
+      "environment": [
+        { "name": "MCP_CLIENT_URL", "value": "http://mcp-client:5005/agent" }
+      ],
+      "essential": true
+    }
+  ],
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "256",
+  "memory": "512"
+}

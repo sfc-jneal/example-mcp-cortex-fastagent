@@ -1,0 +1,59 @@
+# mcp/fastagent.config.yaml
+
+default_model: "openai.gpt-4o"  # "haiku"
+
+execution_engine: "asyncio"
+
+# Model provider settings
+# anthropic:
+#   # Use environment variable for secret management
+#   api_key: ${ANTHROPIC_API_KEY}
+
+openai:
+  # Use environment variable for secret management
+  api_key: ${OPENAI_API_KEY}
+  reasoning_effort: "high"
+
+# MCP servers
+
+mcp:
+  servers:
+    mcp-server-snowflake:
+      command: "uvx"
+      args: ["--from", "git+https://github.com/Snowflake-Labs/mcp", "mcp-server-snowflake", "--service-config-file", "/app/servers/cortex.yaml"]
+      env:
+        PYTHONHTTPSVERIFY: "0"
+        REQUESTS_CA_BUNDLE: ""
+        CURL_CA_BUNDLE: ""
+
+    # Example of other servers that could be added here:
+    # --------------------------------------------------
+    # fetch:
+    #   transport: "stdio"
+    #   command: "uvx"
+    #   args: ["mcp-server-fetch"]
+
+    # prompts:
+    #   transport: "stdio"
+    #   command: "prompt-server"
+    #   args: ["prompts/myprompt.txt"]
+
+    # filesys:
+    #   transport: "stdio"
+    #   command: "uvx"
+    #   args: ["mcp-server-filesystem"]
+    #   roots:
+    #     - uri: "file://./data"
+    #       name: "Data Directory"
+
+# Logging configuration
+logger:
+  type: "file"
+  level: "info"
+  path: "logs/fastagent.jsonl"
+
+# Open Telemetry configuration
+otel:
+  enabled: false  # Disabled temporarily to avoid connection issues
+  # otlp_endpoint: ${OTEL_COLLECTOR_OTLP_ENDPOINT}/v1/traces  # Use environment variable
+
