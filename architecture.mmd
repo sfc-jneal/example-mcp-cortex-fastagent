@@ -3,6 +3,9 @@ graph TD
         A["Website (React)"]
     end
 
+    subgraph Orechestrating LLM
+        LLM["LLM (OpenAI, Claude, etc.)"]
+    end
     
     subgraph "AWS"
             B["Route 53"]
@@ -21,7 +24,7 @@ graph TD
                         F -->|Spawns via uvx| G["MCP Server Process (e.g. Cortex)"]
                     end
                 end
-
+                F <--> LLM
                 D --> E
 
                 E -->|HTTP /chat| F
