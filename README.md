@@ -159,27 +159,36 @@ graph TD
         A["Website (React)"]
     end
 
-    subgraph AWS Network
-        A --> C[API Gateway]
-        C --> D["Application Load Balancer (ELB)"]
-
-        subgraph ECS
-            subgraph "App Service"
-                E["Backend App Service (ECS)"]
-            end
-            subgraph "MCP Service"
-                F["MCP Client Service (ECS)"]
-                F -->|Spawns via uvx| G["MCP Server Process (e.g. Cortex)"]
-            end
-        end
-
-        D --> E
-
-        E -->|HTTP /chat| F
-        E -->|Calls| I[AuthZ Service]
+    subgraph Orechestrating LLM
+        LLM["LLM (OpenAI, Claude, etc.)"]
     end
+    
+    subgraph "AWS"
+            B["Route 53"]
+            A --> B
+            B --> C[API Gateway]
+            subgraph "AWS Region 1"
+                
+                C --> D["Application Load Balancer (ELB)"]
+                
+                subgraph ECS
+                    subgraph "App Service"
+                        E["Backend App Service (ECS)"]
+                    end 
+                    subgraph "MCP Service"
+                        F["MCP Client Service (ECS)"]
+                        F -->|Spawns via uvx| G["MCP Server Process (e.g. Cortex)"]
+                    end
+                end
+                F <--> LLM
+                D --> E
 
-    I -.->|Validates Session Cookie| E
+                E -->|HTTP /chat| F
+                E -->|Calls| I[AuthZ Service]
+            end
+
+            I -.->|Validates Session Cookie| E
+        end
 
     subgraph Snowflake
         H["Cortex APIs"]
