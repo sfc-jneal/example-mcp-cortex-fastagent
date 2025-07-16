@@ -14,6 +14,6 @@ search_services:
 
 analyst_services:
   - service_name: "product_usage_model"
-    semantic_model: "CORTEX_ANALYST_DEMO.REVENUE_TIMESERIES"
+    semantic_model: "CORTEX_ANALYST_DEMO.REVENUE_TIMESERIES.EXAMPLE_VIEW"
     description: >
       Analyst service that can analyze revenue, costs, profits and forecasted revenue metrics, and compare performance across product lines.
