@@ -6,6 +6,8 @@ import httpx
 import jwt
 import os
 import logging
+import time
+import re
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -83,35 +85,105 @@ async def handle_agent(request: Request, payload=Depends(verify_jwt)):
     result = await agent_app.send(user_input)
     return {"response": result}
 
+# Helper function to stream text word by word
+async def stream_text_progressively(text: str, delay: float = 0.05):
+    """Stream text word by word with a small delay to simulate real-time streaming."""
+    # Split into words and punctuation while preserving spaces
+    words = re.findall(r'\S+|\s+', text)
+    
+    current_chunk = ""
+    for word in words:
+        current_chunk += word
+        # Stream every few words or at punctuation
+        if len(current_chunk) > 50 or word.strip() in '.!?;:,':
+            yield current_chunk
+            current_chunk = ""
+            await asyncio.sleep(delay)
+    
+    # Send any remaining text
+    if current_chunk.strip():
+        yield current_chunk
+
 # GET /agent/sse
 # NOTE: This does not yet stream because FASTAGENT does not yet support streaming
 # TODO: Update once FASTAGENT supports streaming
 @app.get("/agent/sse")
 async def stream_agent(query: str, payload=Depends(verify_jwt)):
-    """Send a message to the agent and get the response as a server-sent event stream (currently yields full response at once)."""
+    """Send a message to the agent and get a simulated streaming response with progress updates."""
     logger.info(f"Received SSE request for query: {query}")
-    logger.info('OPENAI_KEY=\'{}\''.format(os.environ.get('OPENAI_API_KEY')))
+    # Remove API key logging for security
+    logger.info('OpenAI API key is configured' if os.environ.get('OPENAI_API_KEY') else 'OpenAI API key is missing')
     
     async def event_generator():
         try:
             if not agent_app:
                 logger.error("Agent not initialized")
-                yield "[ERROR: Agent not initialized]\n\n"
+                yield "[ERROR: Agent not initialized]"
                 return
             
             logger.info(f"Processing query: {query}")
-            # Always use the synchronous send method for now
-            response = await agent_app.send(query)
+            
+            # Send initial status
+            yield "🤔 Processing your query..."
+            await asyncio.sleep(0.1)
+            
+            # Start processing in the background and monitor progress
+            start_time = time.time()
+            
+            # Create a task to get the response
+            response_task = asyncio.create_task(agent_app.send(query))
+            
+            # Simulate progress updates while waiting
+            progress_messages = [
+                "🔍 Analyzing your question...",
+                "🧠 Thinking about the best approach...", 
+                "🔧 Preparing to query the database...",
+                "📊 Searching through your data...",
+                "✨ Generating insights..."
+            ]
+            
+            progress_idx = 0
+            
+            # Monitor the task and provide progress updates
+            while not response_task.done():
+                await asyncio.sleep(1.0)  # Check every second
+                
+                elapsed = time.time() - start_time
+                
+                # Send progress updates every 2 seconds
+                if elapsed > (progress_idx + 1) * 2 and progress_idx < len(progress_messages):
+                    yield progress_messages[progress_idx]
+                    progress_idx += 1
+                
+                # If it's taking too long, let user know we're still working
+                if elapsed > 10 and int(elapsed) % 5 == 0:
+                    yield "⏳ Still working on your request..."
+            
+            # Get the final response
+            response = await response_task
             logger.info(f"Got response: {response[:100]}...")  # Log first 100 chars
             
             # Ensure response is a string
             if not isinstance(response, str):
                 response = str(response)
             
-            yield f"{response}\n\n"
+            # Clear progress and start streaming the actual response
+            yield ""  # Clear line
+            await asyncio.sleep(0.2)
             
+            # Stream the response word by word for a better experience
+            async for chunk in stream_text_progressively(response, delay=0.03):
+                yield chunk
+            
+            # Send completion signal
+            yield ""
+            yield "[DONE]"
+            
+        except asyncio.CancelledError:
+            logger.info("Stream request was cancelled")
+            yield "[CANCELLED]"
         except Exception as e:
             logger.error(f"Error in stream_agent: {str(e)}")
-            yield f"[ERROR: {str(e)}]\n\n"
+            yield f"[ERROR: {str(e)}]"
     
     return StreamingResponse(event_generator(), media_type="text/event-stream")

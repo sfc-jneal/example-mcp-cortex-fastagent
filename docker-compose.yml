@@ -9,6 +9,8 @@ services:
       - mcp-client
     networks:
       - mcp-net
+    env_file:
+      - .env
     environment:
       MCP_JWT_SECRET: "${JWT_SECRET}"
       MCP_JWT_AUDIENCE: "mcp-client"
@@ -23,6 +25,8 @@ services:
     build: ./mcp
     ports:
       - "5005:5005"
+    env_file:
+      - .env
     environment:
       SNOWFLAKE_PAT: "${SNOWFLAKE_PAT}"
       SNOWFLAKE_PASSWORD: "${SNOWFLAKE_PASSWORD}"

@@ -80,34 +80,68 @@ def auth(request: Request) -> Dict:
 # Removes JSON objects that the client sends with intermediate reasoning and tool object output.
 #   Only send the final LLM response to the frontend.
 def filter_response(raw_response):
-    is_json = False
-    try:
-        is_json = json.loads(raw_response.strip())
-    except:
-        pass
-    return '' if is_json else raw_response
-
-
-# Syncronous chat endpoint - if stream wasn't available
-@app.post("/chat")
-async def chat(request: Request, user=Depends(auth)):
-    data = await request.json()
-    user_input = data.get("message", "")
-    logger.info(f"[CHAT] {user['email']} → {user_input}")
-
-    # Generate JWT for inter-service auth
-    mcp_jwt = create_mcp_jwt()
-    headers = {"Authorization": f"Bearer {mcp_jwt}"}
-
-    response = requests.post(MCP_CLIENT_URL, json={"message": user_input, "user": user}, headers=headers)
+    # Handle empty or whitespace-only content
+    if not raw_response or not raw_response.strip():
+        return raw_response
     
-    result = response.json()
+    content = raw_response.strip()
+    
+    # Check if content starts with a JSON object (MCP response format)
+    if content.startswith('{'):
+        try:
+            # Find the end of the JSON object by counting braces
+            brace_count = 0
+            json_end = -1
+            
+            for i, char in enumerate(content):
+                if char == '{':
+                    brace_count += 1
+                elif char == '}':
+                    brace_count -= 1
+                    if brace_count == 0:
+                        json_end = i
+                        break
+            
+            if json_end != -1:
+                # Extract the JSON part
+                json_part = content[:json_end + 1]
+                remaining_content = content[json_end + 1:].strip()
+                
+                # Try to parse the JSON to confirm it's valid
+                parsed_json = json.loads(json_part)
+                
+                # Check if this looks like an MCP response (has 'text', 'sql', 'results' fields)
+                if isinstance(parsed_json, dict) and any(key in parsed_json for key in ['text', 'sql', 'results']):
+                    # This is an MCP JSON response, return only the remaining natural language text
+                    return remaining_content if remaining_content else ''
+                
+            # If we get here, JSON parsing failed or it's not an MCP response format
+            # Fall through to return original content
+            
+        except (json.JSONDecodeError, IndexError):
+            # JSON parsing failed, treat as regular text
+            pass
+    
+    # For non-JSON content or JSON that doesn't match MCP format, check if it's pure JSON
+    try:
+        is_pure_json = json.loads(content)
+        # If it's pure JSON, filter it out completely (intermediate reasoning)
+        return '' if is_pure_json else content
+    except json.JSONDecodeError:
+        # Not JSON, return as-is
+        return content
 
-    if isinstance(result, dict) and "response" in result:
-        filtered = filter_response(result['response'])
-        return {'response': filtered}
-
-    return result
+# Parse SSE format and extract content
+def parse_sse_line(line):
+    """Parse SSE formatted line and extract the content."""
+    line = line.strip()
+    logger.info(f"DEBUG: Received line: '{line}'")
+    if line.startswith("data: "):
+        content = line[6:]  # Remove "data: " prefix
+        logger.info(f"DEBUG: Extracted content: '{content}'")
+        return content
+    logger.info(f"DEBUG: No data prefix, returning as-is: '{line}'")
+    return line
 
 # Streaming chat endpoint - if stream is available
 @app.get("/stream")
@@ -124,10 +158,12 @@ async def stream(query: str, user=Depends(auth)):
                 async with client.stream("GET", f"{MCP_STREAM_URL}?query={query}", headers=headers) as r:
                     async for line in r.aiter_lines():
                         if line:
-
-                            filtered = filter_response(line)
-                            if filtered:
-                                yield f"data: {filtered}\n\n"
+                            # Parse SSE format from MCP client
+                            content = parse_sse_line(line)
+                            if content:
+                                filtered = filter_response(content)
+                                if filtered:
+                                    yield f"data: {filtered}\n\n"
         except httpx.TimeoutException:
             logger.error("Timeout while streaming from MCP client")
             yield "data: [ERROR: Request timed out]\n\n"
